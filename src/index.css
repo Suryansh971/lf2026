@@ -740,6 +740,17 @@ body {
   transform: scale(1.08);
 }
 
+/* Custom image fit classes for selected artists */
+.fit-center{
+  object-fit: contain !important;
+  object-position: center center !important;
+}
+
+.fit-bottom{
+  object-fit: contain !important;
+  object-position: bottom center !important;
+}
+
 /* Card content */
 .itin-perf-content {
   padding: 1.25rem 1.5rem;
@@ -1221,6 +1232,8 @@ body {
   .memories-grid { grid-template-columns: repeat(3, 1fr); }
   .countdown-num { font-size: 1.1rem; min-width: 42px; }
   .footer-top { grid-template-columns: 1.2fr 1fr 1fr; gap: 2rem; }
+  .itin-perf-image { width: 100px; }
+}
   .itin-perf-image {
     width: 84px;
     min-height: auto;
