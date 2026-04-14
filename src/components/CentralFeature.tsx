@@ -11,8 +11,8 @@ function useResponsive() {
   const { viewport } = useThree()
   const isMobile = viewport.width < 10
   const isTablet = viewport.width >= 10 && viewport.width < 16
-  // Scale factor: 1.0 on desktop, ~0.45 on mobile (tighter fit)
-  const sf = isMobile ? 0.45 : isTablet ? 0.75 : 1.0
+  // Scale factor: 1.0 on desktop, ~0.55 on mobile
+  const sf = isMobile ? 0.55 : isTablet ? 0.75 : 1.0
   return { isMobile, isTablet, sf, vw: viewport.width }
 }
 
@@ -20,7 +20,7 @@ function useResponsive() {
    Reusable GLB wrapper
    ========================================================= */
 function GLBModel({
-  url, position, scale = 1, rotation, hoverScale = 1.12, hoverSound,
+  url, position, scale = 1, rotation, hoverScale, hoverSound,
   floatY, floatSpeed = 1, spinSpeed, mobileHide,
 }: {
   url: string
@@ -41,13 +41,12 @@ function GLBModel({
   const clone = useMemo(() => scene.clone(), [scene])
   const { actions } = useAnimations(animations, groupRef)
   const { isMobile, sf } = useResponsive()
-  const baseRot = useMemo<[number, number, number]>(() => rotation || [0, 0, 0], [rotation])
-  const phaseOffset = useMemo(() => Math.random() * Math.PI * 2, [])
 
   useEffect(() => {
     Object.values(actions).forEach((a) => a?.play())
   }, [actions])
 
+  // Hide certain models on mobile to reduce clutter
   if (mobileHide && isMobile) return null
 
   const adjustedScale = scale * sf
@@ -60,46 +59,13 @@ function GLBModel({
   useFrame((state) => {
     if (!groupRef.current) return
     const t = state.clock.elapsedTime
-    const { pointer } = state
-
-    let px = adjustedPos[0]
-    let py = adjustedPos[1]
-    let pz = adjustedPos[2]
-
-    if (floatY) py += Math.sin(t * floatSpeed + phaseOffset) * floatY
-
-    px += Math.sin(t * floatSpeed * 0.5 + phaseOffset) * 0.12 * sf
-    pz += Math.cos(t * floatSpeed * 0.35 + phaseOffset * 1.7) * 0.08 * sf
-
-    const depthInfluence = 0.3 + Math.abs(adjustedPos[2]) * 0.04
-    px += pointer.x * depthInfluence * sf
-    py += pointer.y * depthInfluence * 0.4 * sf
-
-    groupRef.current.position.set(px, py, pz)
-
+    if (floatY) groupRef.current.position.y = adjustedPos[1] + Math.sin(t * floatSpeed) * floatY
     if (spinSpeed) groupRef.current.rotation.y += spinSpeed
-
-    groupRef.current.rotation.x = THREE.MathUtils.lerp(
-      groupRef.current.rotation.x,
-      baseRot[0] + pointer.y * 0.05,
-      0.03
-    )
-
-    if (hovered) {
+    if (hovered && hoverScale) {
       const hs = adjustedScale * hoverScale
-      groupRef.current.scale.lerp(new THREE.Vector3(hs, hs, hs), 0.12)
-      groupRef.current.rotation.z = THREE.MathUtils.lerp(
-        groupRef.current.rotation.z,
-        baseRot[2] + Math.sin(t * 8) * 0.1,
-        0.1
-      )
+      groupRef.current.scale.lerp(new THREE.Vector3(hs, hs, hs), 0.1)
     } else {
       groupRef.current.scale.lerp(new THREE.Vector3(adjustedScale, adjustedScale, adjustedScale), 0.06)
-      groupRef.current.rotation.z = THREE.MathUtils.lerp(
-        groupRef.current.rotation.z,
-        baseRot[2],
-        0.04
-      )
     }
   })
 
@@ -136,12 +102,12 @@ function HeroTitle() {
   }, [texture])
 
   const isMobile = viewport.width < 10
-  const h = isMobile ? 3.2 : 5
+  const h = isMobile ? 2.8 : 5
   const w = h * aspect
 
   return (
     <Float speed={1.5} rotationIntensity={0.01} floatIntensity={0.15}>
-      <mesh position={[0, isMobile ? 3 : 2.5, isMobile ? 6 : 2]}>
+      <mesh position={[0, isMobile ? 2.5 : 2.5, isMobile ? 5 : 2]}>
         <planeGeometry args={[w, h]} />
         <meshBasicMaterial map={texture} transparent toneMapped={false} side={THREE.DoubleSide} />
       </mesh>
@@ -166,12 +132,11 @@ function DiscoBallWithLight({ pos, mobileSf }: { pos: [number, number, number]; 
   useFrame((state) => {
     if (!groupRef.current) return
     const t = state.clock.elapsedTime
-    groupRef.current.rotation.y += 0.018
-    groupRef.current.position.y = adjustedPos[1] + Math.sin(t * 1.2) * 0.35
-    groupRef.current.position.x = adjustedPos[0] + state.pointer.x * 0.25 * mobileSf + Math.sin(t * 0.4) * 0.1
+    groupRef.current.rotation.y += 0.012
+    groupRef.current.position.y = adjustedPos[1] + Math.sin(t * 1.2) * 0.2
     if (lightRef.current) {
-      lightRef.current.intensity = 2.5 + Math.sin(t * 5) * 1.5
-      lightRef.current.color.setHSL((t * 0.1) % 1, 0.85, 0.6)
+      lightRef.current.intensity = 1.5 + Math.sin(t * 5) * 1
+      lightRef.current.color.setHSL((t * 0.08) % 1, 0.7, 0.6)
     }
   })
 
@@ -210,29 +175,28 @@ function DJFrankWithConsole() {
     Object.values(cActions).forEach((a) => a?.play())
   }, [fActions, cActions])
 
-  const frankBaseScale = isMobile ? 0.85 : 2
-  const consoleBaseScale = isMobile ? 0.4 : 0.9
-  const frankX = isMobile ? 3.5 : 10
-  const consoleX = isMobile ? 3 : 9
+  const frankBaseScale = isMobile ? 1.1 : 2
+  const consoleBaseScale = isMobile ? 0.55 : 0.9
+  const frankX = isMobile ? 5 : 10
+  const consoleX = isMobile ? 4.5 : 9
 
   useFrame((state) => {
     const progress = Math.min(window.scrollY / window.innerHeight, 1)
     const t = state.clock.elapsedTime
-    const { pointer } = state
     if (frankRef.current) {
       frankRef.current.position.set(
-        frankX + progress * (isMobile ? 8 : 12) + pointer.x * 0.15,
-        -2.8 + Math.sin(t * 1.2) * 0.08 - progress * 3 + pointer.y * 0.05,
-        isMobile ? 1 : -1,
+        frankX + progress * 12,
+        -2.8 + Math.sin(t * 1.2) * 0.04 - progress * 3,
+        -1,
       )
-      frankRef.current.rotation.y = -0.4 + progress * 0.8 + Math.sin(t * 0.8) * 0.02
+      frankRef.current.rotation.y = -0.4 + progress * 0.8
       frankRef.current.scale.setScalar(frankBaseScale * (1 - progress * 0.7))
     }
     if (consoleRef.current) {
       consoleRef.current.position.set(
-        consoleX + progress * (isMobile ? 7 : 10) + pointer.x * 0.1,
-        -3.2 + Math.sin(t * 1.4) * 0.04 - progress * 2 + pointer.y * 0.03,
-        isMobile ? 3 : 2,
+        consoleX + progress * 10,
+        -3.2 + Math.sin(t * 1.4) * 0.02 - progress * 2,
+        2,
       )
       consoleRef.current.scale.setScalar(consoleBaseScale * (1 - progress * 0.7))
     }
@@ -240,10 +204,10 @@ function DJFrankWithConsole() {
 
   return (
     <>
-      <group ref={frankRef} position={[frankX, -2.8, isMobile ? 1 : -1]} scale={frankBaseScale} rotation={[0, -0.4, 0]}>
+      <group ref={frankRef} position={[frankX, -2.8, -1]} scale={frankBaseScale} rotation={[0, -0.4, 0]}>
         <primitive object={fClone} />
       </group>
-      <group ref={consoleRef} position={[consoleX, -3.2, isMobile ? 3 : 2]} scale={consoleBaseScale}>
+      <group ref={consoleRef} position={[consoleX, -3.2, 2]} scale={consoleBaseScale}>
         <primitive object={cClone} />
       </group>
     </>
@@ -265,13 +229,12 @@ function FloatingStar({ position, color, size = 0.3, mobileSf }: {
     const t = state.clock.elapsedTime
     ref.current.rotation.y = t * 0.5
     ref.current.rotation.z = t * 0.3
-    ref.current.position.y = adjustedPos[1] + Math.sin(t * 1.5 + adjustedPos[0]) * 0.4
-    ref.current.position.x = adjustedPos[0] + Math.sin(t * 0.4 + adjustedPos[2]) * 0.15 + state.pointer.x * 0.08 * mobileSf
+    ref.current.position.y = adjustedPos[1] + Math.sin(t * 1.5 + adjustedPos[0]) * 0.3
   })
   return (
     <mesh ref={ref} position={adjustedPos}>
       <octahedronGeometry args={[adjustedSize]} />
-      <meshStandardMaterial color={color} roughness={0.2} metalness={0.3} emissive={color} emissiveIntensity={0.25} />
+      <meshStandardMaterial color={color} roughness={0.2} metalness={0.3} emissive={color} emissiveIntensity={0.15} />
     </mesh>
   )
 }
@@ -294,9 +257,8 @@ function FloatingConfetti({ position, color, shape = 'box', size = 0.12, mobileS
     const t = state.clock.elapsedTime
     ref.current.rotation.x = t * speedX
     ref.current.rotation.z = t * speedY
-    ref.current.position.y = adjustedPos[1] + Math.sin(t * 1.2 + phaseOffset) * 0.3
-    ref.current.position.x = adjustedPos[0] + Math.sin(t * 0.4 + phaseOffset) * 0.2 + state.pointer.x * 0.06 * mobileSf
-    ref.current.position.z = adjustedPos[2] + Math.cos(t * 0.3 + phaseOffset) * 0.1
+    ref.current.position.y = adjustedPos[1] + Math.sin(t * 1.2 + phaseOffset) * 0.25
+    ref.current.position.x = adjustedPos[0] + Math.sin(t * 0.4 + phaseOffset) * 0.15
   })
 
   return (
@@ -365,8 +327,7 @@ function FloatingRing({ position, color, size = 0.8, mobileSf }: {
     const t = state.clock.elapsedTime
     ref.current.rotation.x = t * rotSpeed
     ref.current.rotation.y = t * rotSpeed * 0.7
-    ref.current.position.y = adjustedPos[1] + Math.sin(t * 0.8 + adjustedPos[0]) * 0.4
-    ref.current.position.x = adjustedPos[0] + state.pointer.x * 0.1 * mobileSf
+    ref.current.position.y = adjustedPos[1] + Math.sin(t * 0.8 + adjustedPos[0]) * 0.3
   })
   return (
     <mesh ref={ref} position={adjustedPos}>
@@ -431,11 +392,11 @@ export default function CentralFeature() {
       <GLBModel
         url="/models/fender_electric_guitar_3d_model.glb"
         position={[-10, -1, 0]}
-        scale={3.8}
+        scale={3.5}
         rotation={[0, 0.7, -0.12]}
-        hoverScale={1.08}
+        hoverScale={1.06}
         hoverSound={playJazzLick}
-        floatY={0.15}
+        floatY={0.08}
         floatSpeed={1.1}
       />
 
@@ -519,28 +480,28 @@ export default function CentralFeature() {
       <GLBModel
         url="/models/headphones_final.glb"
         position={[-8, 6, -4]}
-        scale={2.0}
-        floatY={0.45}
+        scale={1.5}
+        floatY={0.25}
         floatSpeed={1.5}
-        hoverScale={1.12}
+        hoverScale={1.08}
         hoverSound={playBounce}
       />
 
       <GLBModel
         url="/models/thug_life__cool_glasses__stylise_goggles.glb"
         position={[8, 7, -5]}
-        scale={9}
-        floatY={0.4}
+        scale={7}
+        floatY={0.2}
         floatSpeed={1.3}
-        hoverScale={1.1}
+        hoverScale={1.06}
       />
 
       <GLBModel
         url="/models/pretty_simple_discoball_final.glb"
         position={[-5, 8, -6]}
-        scale={2.0}
-        spinSpeed={0.025}
-        floatY={0.35}
+        scale={1.5}
+        spinSpeed={0.02}
+        floatY={0.15}
         floatSpeed={1.0}
       />
 
